@@ -532,11 +532,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/asiwaju/Documents/Ecommerce.Api/Ecommerce.Api.csproj",
+      "projectUniqueName": "/home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/Ecommerce.Api.csproj",
       "projectName": "Ecommerce.Api",
-      "projectPath": "/home/asiwaju/Documents/Ecommerce.Api/Ecommerce.Api.csproj",
+      "projectPath": "/home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/Ecommerce.Api.csproj",
       "packagesPath": "/home/asiwaju/.nuget/packages/",
-      "outputPath": "/home/asiwaju/Documents/Ecommerce.Api/obj/",
+      "outputPath": "/home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/home/asiwaju/.nuget/NuGet/NuGet.Config"
