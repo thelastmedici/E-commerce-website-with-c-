@@ -4,4 +4,6 @@ public class OrderItem // public class that shows schema of a single Item within
     public int ProductId { get; set; } //refences which product is in the order(foreign key to product)
     public int Quantity { get; set; }
     public decimal Price { get; set; }
+    public int OrderId { get; set; } // foreign key back to Order
+    public Order Order { get; set; }
 }

@@ -15,6 +15,9 @@ public class AppDbContext : DbContext
 
         // Configure the one-to-many relationship between Order and OrderItem
         modelBuilder.Entity<Order>()
-            .HasMany(o => o.Items);
+            .HasMany(o => o.Items)
+            .WithOne(oi => oi.Order)
+            .HasForeignKey(oi => oi.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
