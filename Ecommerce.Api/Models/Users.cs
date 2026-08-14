@@ -1,4 +1,4 @@
-public class User
+public class User // public class that define each user account schema
 {
     public int Id { get; set; }
     public string Email { get; set; }

@@ -1,0 +1,1 @@
+public record LoginDto(string Email, string Password); // user login details schema
