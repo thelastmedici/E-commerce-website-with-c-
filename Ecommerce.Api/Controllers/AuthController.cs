@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase

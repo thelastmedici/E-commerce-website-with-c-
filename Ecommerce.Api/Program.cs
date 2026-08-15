@@ -1,4 +1,3 @@
-using Ecommerce.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
