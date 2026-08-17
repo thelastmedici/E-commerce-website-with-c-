@@ -66,10 +66,9 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(OrderCreateDto dto)
+    public async Task<IActionResult> Create([FromBody] OrderCreateDto dto)
     {
-        if (dto == null || dto.Items == null || !dto.Items.Any())
-            return BadRequest("Order must contain at least one item.");
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
         // Validate products
         var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();

@@ -1,5 +1,24 @@
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
-public record OrderItemCreateDto(int ProductId, int Quantity);
+public class OrderItemCreateDto
+{
+	[Required]
+	[Range(1, int.MaxValue)]
+	public int ProductId { get; set; }
 
-public record OrderCreateDto(int UserId, List<OrderItemCreateDto> Items);
+	[Required]
+	[Range(1, int.MaxValue)]
+	public int Quantity { get; set; }
+}
+
+public class OrderCreateDto
+{
+	[Required]
+	[Range(1, int.MaxValue)]
+	public int UserId { get; set; }
+
+	[Required]
+	[MinLength(1)]
+	public List<OrderItemCreateDto> Items { get; set; } = new();
+}
