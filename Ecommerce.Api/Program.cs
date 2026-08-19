@@ -8,12 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["Key"] ?? "ThisIsADevelopmentSecretKeyForLocalUse123!";
 
-// Configure DB connection - prefer configured connection string, fall back to SQLite file
+// Configure DB connection - prefer configured connection string, fall back to a local SQL Server instance
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? $"Data Source={AppContext.BaseDirectory}/ecommerce.db";
+                       ?? "Server=(localdb)\\MSSQLLocalDB;Database=EcommerceDb;Trusted_Connection=True;TrustServerCertificate=True;";
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(connectionString));
+    opt.UseSqlServer(connectionString));
 
 builder.Services.AddAuthentication(options =>
 {

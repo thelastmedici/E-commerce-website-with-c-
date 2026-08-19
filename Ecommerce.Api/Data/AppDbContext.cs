@@ -13,6 +13,14 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Product>()
+            .Property(p => p.Price)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.Price)
+            .HasPrecision(18, 2);
+
         modelBuilder.Entity<User>()
             .HasMany(u => u.Orders)
             .WithOne(o => o.User)
