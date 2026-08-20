@@ -69,31 +69,53 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] OrderCreateDto dto)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-        // Validate products
+        // Validate product IDs and start a transaction for atomicity
         var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();
-        var products = await _db.Products.Where(p => productIds.Contains(p.Id)).ToListAsync();
-        if (products.Count != productIds.Count)
-            return BadRequest("One or more products do not exist.");
 
-        var order = new Order
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        try
         {
-            UserId = dto.UserId,
-            Items = dto.Items.Select(i =>
+            var products = await _db.Products.Where(p => productIds.Contains(p.Id)).ToListAsync();
+            if (products.Count != productIds.Count)
+                return BadRequest("One or more products do not exist.");
+
+            // Check stock availability
+            foreach (var item in dto.Items)
             {
-                var prod = products.First(p => p.Id == i.ProductId);
-                return new OrderItem
+                var prod = products.First(p => p.Id == item.ProductId);
+                if (prod.Stock < item.Quantity)
+                    return BadRequest($"Insufficient stock for product '{prod.Name}' (id={prod.Id}). Available: {prod.Stock}, requested: {item.Quantity}.");
+            }
+
+            // Build order and decrement stock
+            var order = new Order
+            {
+                UserId = dto.UserId,
+                Items = dto.Items.Select(i =>
                 {
-                    ProductId = i.ProductId,
-                    Quantity = i.Quantity,
-                    Price = prod.Price
-                };
-            }).ToList()
-        };
+                    var prod = products.First(p => p.Id == i.ProductId);
+                    // decrement stock in the tracked entity
+                    prod.Stock -= i.Quantity;
+                    return new OrderItem
+                    {
+                        ProductId = i.ProductId,
+                        Quantity = i.Quantity,
+                        Price = prod.Price
+                    };
+                }).ToList()
+            };
 
-        await _db.Orders.AddAsync(order);
-        await _db.SaveChangesAsync();
+            await _db.Orders.AddAsync(order);
+            await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = order.Id }, new { order.Id });
+            await transaction.CommitAsync();
+
+            return CreatedAtAction(nameof(GetById), new { id = order.Id }, new { order.Id });
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }
