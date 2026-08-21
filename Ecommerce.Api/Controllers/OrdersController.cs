@@ -112,6 +112,11 @@ public class OrdersController : ControllerBase
 
             return CreatedAtAction(nameof(GetById), new { id = order.Id }, new { order.Id });
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync();
+            return Conflict(new { error = "A concurrency conflict occurred while updating product stock. Please retry the order." });
+        }
         catch
         {
             await transaction.RollbackAsync();

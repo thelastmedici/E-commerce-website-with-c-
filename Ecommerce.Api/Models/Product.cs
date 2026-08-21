@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 public class Product // this is a public class that defines the product schema
 {
     public int Id { get; set; }
@@ -5,4 +7,7 @@ public class Product // this is a public class that defines the product schema
     public decimal Price { get; set; }
     public int Stock { get; set; } = 0;
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

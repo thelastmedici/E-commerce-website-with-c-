@@ -16,10 +16,10 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public IActionResult GetProducts()
     {
-        var list = _db.Products.Select(p => new ProductResponseDto { Id = p.Id, Name = p.Name, Price = p.Price }).ToList();
+        var list = _db.Products.Select(p => new ProductResponseDto { Id = p.Id, Name = p.Name, Price = p.Price, Stock = p.Stock }).ToList();
         return Ok(list);
     }
-
+    
     [HttpPost]
     public IActionResult Create([FromBody] ProductCreateDto dto)
     {
@@ -29,12 +29,13 @@ public class ProductsController : ControllerBase
         {
             Name = dto.Name,
             Price = dto.Price
+            ,Stock = dto.Stock
         };
 
         _db.Products.Add(product);
         _db.SaveChanges();
 
-        var resp = new ProductResponseDto { Id = product.Id, Name = product.Name, Price = product.Price };
+        var resp = new ProductResponseDto { Id = product.Id, Name = product.Name, Price = product.Price, Stock = product.Stock };
         return Ok(resp);
     }
 }
