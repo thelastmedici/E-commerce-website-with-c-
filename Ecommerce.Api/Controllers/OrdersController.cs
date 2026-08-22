@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,11 +20,18 @@ public class OrdersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized();
+
         var products = await _db.Products.AsNoTracking().ToDictionaryAsync(p => p.Id);
-        var orders = await _db.Orders
+        IQueryable<Order> ordersQuery = _db.Orders
             .Include(o => o.Items)
-            .AsNoTracking()
-            .ToListAsync();
+            .AsNoTracking();
+
+        if (!User.IsInRole("Admin"))
+            ordersQuery = ordersQuery.Where(o => o.UserId == userId.Value);
+
+        var orders = await ordersQuery.ToListAsync();
 
         var result = orders.Select(o => new OrderResponseDto(
             o.Id,
@@ -44,7 +52,14 @@ public class OrdersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var order = await _db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized();
+
+        IQueryable<Order> orderQuery = _db.Orders.Include(o => o.Items).Where(o => o.Id == id);
+        if (!User.IsInRole("Admin"))
+            orderQuery = orderQuery.Where(o => o.UserId == userId.Value);
+
+        var order = await orderQuery.FirstOrDefaultAsync();
         if (order == null) return NotFound();
 
         var products = await _db.Products.AsNoTracking().ToDictionaryAsync(p => p.Id);
@@ -69,6 +84,10 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] OrderCreateDto dto)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized();
+
         // Validate product IDs and start a transaction for atomicity
         var productIds = dto.Items.Select(i => i.ProductId).Distinct().ToList();
 
@@ -90,7 +109,8 @@ public class OrdersController : ControllerBase
             // Build order and decrement stock
             var order = new Order
             {
-                UserId = dto.UserId,
+                // Ownership always comes from the authenticated identity, never the request body.
+                UserId = userId.Value,
                 Items = dto.Items.Select(i =>
                 {
                     var prod = products.First(p => p.Id == i.ProductId);
@@ -122,5 +142,12 @@ public class OrdersController : ControllerBase
             await transaction.RollbackAsync();
             throw;
         }
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return int.TryParse(claim, out var userId) ? userId : null;
     }
 }
