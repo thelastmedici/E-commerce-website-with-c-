@@ -6,7 +6,6 @@
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/obj/Debug/net8.0/Ecommerce.Api.csproj.CoreCompileInputs.cache
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/obj/Debug/net8.0/Ecommerce.Api.MvcApplicationPartsAssemblyInfo.cs
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/obj/Debug/net8.0/Ecommerce.Api.MvcApplicationPartsAssemblyInfo.cache
-/home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/obj/Debug/net8.0/Ecommerce.Api.sourcelink.json
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/bin/Debug/net8.0/appsettings.Development.json
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/bin/Debug/net8.0/appsettings.json
 /home/asiwaju/Documents/E-commerce-website-with-c-/Ecommerce.Api/bin/Debug/net8.0/Ecommerce.Api.staticwebassets.endpoints.json
