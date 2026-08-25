@@ -17,6 +17,20 @@ public class AppDbContext : DbContext
             .Property(p => p.Price)
             .HasPrecision(18, 2);
 
+        var rowVersion = modelBuilder.Entity<Product>().Property(p => p.RowVersion);
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            rowVersion
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAdd()
+                .HasColumnType("BLOB")
+                .HasDefaultValueSql("randomblob(8)");
+        }
+        else
+        {
+            rowVersion.IsRowVersion();
+        }
+
         modelBuilder.Entity<OrderItem>()
             .Property(oi => oi.Price)
             .HasPrecision(18, 2);
