@@ -9,9 +9,13 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _keeperConnection = new(
         $"Data Source=test-{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
+    private readonly Dictionary<string, string?> _originalEnvironment = new();
 
     public TestApplicationFactory()
     {
+        SetEnvironment("Jwt__Key", "test-only-key-that-is-at-least-32-characters-long");
+        SetEnvironment("ConnectionStrings__DefaultConnection", "Data Source=test-only");
+        SetEnvironment("Cors__AllowedOrigins__0", "http://localhost");
         _keeperConnection.Open();
     }
 
@@ -45,5 +49,14 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
     {
         await base.DisposeAsync();
         await _keeperConnection.DisposeAsync();
+
+        foreach (var (key, value) in _originalEnvironment)
+            Environment.SetEnvironmentVariable(key, value);
+    }
+
+    private void SetEnvironment(string key, string value)
+    {
+        _originalEnvironment[key] = Environment.GetEnvironmentVariable(key);
+        Environment.SetEnvironmentVariable(key, value);
     }
 }

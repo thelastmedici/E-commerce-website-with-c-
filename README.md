@@ -40,7 +40,17 @@ This repository contains the backend API for a simple e-commerce application bui
 
 This project uses SQL Server with Entity Framework Core. A Docker Compose file is included to spin up a local SQL Server instance for development.
 
-Connection strings are defined in `Ecommerce.Api/appsettings.json` and `Ecommerce.Api/appsettings.Development.json`.
+Secrets are not stored in the repository. Configure them through environment variables, user secrets, or your deployment secret manager:
+
+```bash
+export Jwt__Key='replace-with-a-random-secret-at-least-32-characters-long'
+export ConnectionStrings__DefaultConnection='Server=localhost,1433;Database=EcommerceDb;User Id=sa;Password=<your-password>;TrustServerCertificate=True;'
+export Cors__AllowedOrigins__0='http://localhost:3000'
+export Cors__AllowedOrigins__1='http://localhost:5173'
+export MSSQL_SA_PASSWORD='<your-password>'
+```
+
+The JWT key and SQL password must be supplied outside tracked configuration files. CORS origins must be explicitly allowlisted.
 
 To create the database schema:
 

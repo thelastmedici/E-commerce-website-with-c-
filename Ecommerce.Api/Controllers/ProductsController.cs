@@ -81,7 +81,6 @@ public class ProductsController : ControllerBase
         product.Price = dto.Price;
         product.Stock = dto.Stock;
         await _db.SaveChangesAsync();
-
         return Ok(ToResponse(product));
     }
 
@@ -91,7 +90,6 @@ public class ProductsController : ControllerBase
     {
         var product = await _db.Products.FindAsync(id);
         if (product is null) return NotFound();
-
         if (await _db.OrderItems.AnyAsync(item => item.ProductId == id))
             return Conflict("Products referenced by existing orders cannot be deleted.");
 

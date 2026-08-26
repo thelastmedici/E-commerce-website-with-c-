@@ -6,7 +6,7 @@ services:
     container_name: ecommerce-sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD before starting Docker}
     ports:
       - "1433:1433"
     restart: unless-stopped
