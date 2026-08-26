@@ -1,105 +1,178 @@
-# Ecommerce.Api
+# Ecommerce API
 
-Lightweight ASP.NET Core Web API for a sample E-commerce website (C#).
+An ASP.NET Core Web API for a sample e-commerce application. The API provides JWT authentication, product management, stock-aware order processing, and SQL Server persistence.
 
-## Overview
+## Stack
 
-This repository contains the backend API for a simple e-commerce application built with ASP.NET Core and Entity Framework Core. It provides endpoints for authentication, product management, and order processing.
-
-## Tech stack
-
-- .NET 8 / ASP.NET Core
-- Entity Framework Core
-- C#
+- .NET 8 and ASP.NET Core
+- Entity Framework Core 8
+- SQL Server 2022
+- JWT bearer authentication
+- BCrypt password hashing
+- Swagger/OpenAPI in development
+- xUnit integration tests with SQLite in-memory storage
 
 ## Prerequisites
 
-- .NET 8 SDK (install from https://dotnet.microsoft.com)
-- A SQL Server instance (LocalDB, SQL Server, or Dockerized SQL)
+- .NET 8 SDK
+- Docker Desktop or Docker Engine with Compose
+- `dotnet-ef` global tool for migrations
 
-## Quick start
+Install the EF tool if needed:
 
-1. Clone the repo:
+```bash
+dotnet tool install --global dotnet-ef
+```
 
-   git clone https://github.com/thelastmedici/E-commerce-website-with-c-.git
-   cd E-commerce-website-with-c-
+## Configuration
 
-2. Start a local SQL Server instance using Docker:
+Secrets are intentionally excluded from tracked configuration files. Configure the API through environment variables, user secrets, or a deployment secret manager.
 
-   docker compose up -d
-
-3. Restore and run the API:
-
-   cd Ecommerce.Api
-   dotnet restore
-   dotnet run --project Ecommerce.Api.csproj
-
-4. The API will be available at `https://localhost:5001` or the port shown in the console.
-
-## Database setup
-
-This project uses SQL Server with Entity Framework Core. A Docker Compose file is included to spin up a local SQL Server instance for development.
-
-Secrets are not stored in the repository. Configure them through environment variables, user secrets, or your deployment secret manager:
+Required settings:
 
 ```bash
 export Jwt__Key='replace-with-a-random-secret-at-least-32-characters-long'
 export ConnectionStrings__DefaultConnection='Server=localhost,1433;Database=EcommerceDb;User Id=sa;Password=<your-password>;TrustServerCertificate=True;'
-export Cors__AllowedOrigins__0='http://localhost:3000'
-export Cors__AllowedOrigins__1='http://localhost:5173'
-export MSSQL_SA_PASSWORD='<your-password>'
 ```
 
-The JWT key and SQL password must be supplied outside tracked configuration files. CORS origins must be explicitly allowlisted.
+At least one browser origin must be allowlisted for CORS:
 
-To create the database schema:
+```bash
+export Cors__AllowedOrigins__0='http://localhost:3000'
+export Cors__AllowedOrigins__1='http://localhost:5173'
+```
+
+The application fails during startup when the JWT key, database connection string, or CORS allowlist is missing. Do not commit real secrets to this repository.
+
+## Run Locally
+
+From the repository root, set the SQL Server password and start the database:
+
+```bash
+export MSSQL_SA_PASSWORD='<your-password>'
+docker compose up -d
+```
+
+Use the same password in `ConnectionStrings__DefaultConnection`, then restore and apply the database migrations:
+
+```bash
+cd Ecommerce.Api
+dotnet restore
+dotnet ef database update
+dotnet run
+```
+
+The API uses the URL printed by ASP.NET Core. With the default launch settings, Swagger is available at:
+
+- `https://localhost:7071`
+- `http://localhost:5065`
+
+Swagger is enabled only in the Development environment.
+
+## Database Migrations
+
+Apply existing migrations:
 
 ```bash
 cd Ecommerce.Api
 dotnet ef database update
 ```
 
-If you change the model, create a new migration with:
+Create a migration after changing the EF model:
 
 ```bash
-cd Ecommerce.Api
 dotnet ef migrations add <MigrationName>
 ```
 
-## Common commands
+The current model includes product stock and a SQL Server `rowversion` concurrency token.
 
-- Restore dependencies: `dotnet restore`
-- Run the API: `dotnet run --project Ecommerce.Api.csproj`
-- Build: `dotnet build`
-- Run integration tests: `dotnet test ../Ecommerce.Api.Tests/Ecommerce.Api.Tests.csproj`
+## API Endpoints
 
-If you use EF Core migrations locally, you can add/apply migrations:
+All product and order endpoints require a valid bearer token unless stated otherwise.
 
-- Add migration: `dotnet ef migrations add InitialCreate -p Ecommerce.Api.csproj`
-- Update database: `dotnet ef database update -p Ecommerce.Api.csproj`
+### Authentication
 
-(Install `dotnet-ef` global tool if needed.)
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/auth/register` | Register a user |
+| `POST` | `/api/auth/login` | Authenticate and receive a JWT |
 
-## API Endpoints (controllers)
+### Products
 
-- `AuthController` — user registration & login
-- `ProductsController` — product listing and details
-- `OrdersController` — create and manage orders
+| Method | Route | Access |
+| --- | --- | --- |
+| `GET` | `/api/products` | Authenticated users |
+| `GET` | `/api/products/{id}` | Authenticated users |
+| `POST` | `/api/products` | Admins only |
+| `PUT` | `/api/products/{id}` | Admins only |
+| `DELETE` | `/api/products/{id}` | Admins only |
 
-Inspect controller sources in the `Controllers/` folder for routes and example request formats.
+Products referenced by existing orders cannot be deleted.
 
-## Project structure
+### Orders
 
-- `Controllers/` — API controllers
-- `Data/` — EF `AppDbContext` and data access
-- `DTOs/` — request/response DTOs
-- `Models/` — domain models (`Product`, `Order`, `OrderItem`, `Users`)
-- `appsettings.json` — configuration
+| Method | Route | Access |
+| --- | --- | --- |
+| `GET` | `/api/orders` | Own orders; admins see all |
+| `GET` | `/api/orders/{id}` | Owner or admin |
+| `POST` | `/api/orders` | Authenticated users |
 
-## Contributing
+Order ownership is taken from the authenticated JWT identity. Clients do not submit a `UserId`. Order creation validates product existence, checks stock, decrements stock transactionally, and captures the product price at purchase time.
 
-Contributions welcome. Create issues or PRs against `main`.
+Example order request:
+
+```json
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+## Tests
+
+The integration suite starts the real API pipeline with an isolated SQLite in-memory database. It covers:
+
+- Registration and login
+- JWT-protected endpoints
+- Admin-only product management
+- Product validation
+- Stock limits
+- Order ownership
+- Concurrent orders and overselling protection
+
+Run all tests from the repository root:
+
+```bash
+dotnet test Ecommerce.Api.Tests/Ecommerce.Api.Tests.csproj
+```
+
+## Project Structure
+
+```text
+Ecommerce.Api/
+  Controllers/     HTTP endpoints
+  Data/            EF Core DbContext
+  DTOs/            Request and response contracts
+  Migrations/      EF Core database migrations
+  Models/          Domain entities
+  Program.cs       Application startup and middleware
+Ecommerce.Api.Tests/
+  ApiTests.cs      Integration test scenarios
+  TestApplicationFactory.cs
+```
+
+## Security Notes
+
+- JWT signing keys and database passwords must be supplied externally.
+- CORS uses an explicit origin allowlist and fails closed when none is configured.
+- Product mutations require the `Admin` role.
+- Users cannot access another user’s orders.
+- Passwords are stored as BCrypt hashes, never plaintext.
 
 ## License
 
-This project is provided as-is. Add a license file if you intend to open-source it (e.g., MIT).
+This project is provided as-is. Add a license file before distributing it as open source.
