@@ -3,11 +3,12 @@ using System.ComponentModel.DataAnnotations;
 public class ProductCreateDto
 {
     [Required]
-    [MinLength(2)]
+    [StringLength(200, MinimumLength = 2)]
+    [RegularExpression(@".*\S.*", ErrorMessage = "Name must contain non-whitespace characters.")]
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [Range(0.0, double.MaxValue)]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
     public decimal Price { get; set; }
 
     [Required]

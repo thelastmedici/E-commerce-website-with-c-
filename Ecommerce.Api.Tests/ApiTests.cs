@@ -35,9 +35,51 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var products = await client.GetAsync("/api/products");
 
-        Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         Assert.Equal(HttpStatusCode.OK, products.StatusCode);
+    }
+
+    [Fact]
+    public async Task Registration_NormalizesEmailAndRejectsDuplicates()
+    {
+        await _factory.ResetDatabaseAsync();
+        using var client = _factory.CreateClient();
+
+        var first = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "Customer@Example.com",
+            password = "Password123!"
+        });
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "customer@example.com",
+            password = "Password123!"
+        });
+        var duplicate = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "customer@example.com",
+            password = "Password123!"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+    }
+
+    [Fact]
+    public async Task AuthenticationValidation_RejectsInvalidEmailAndWeakPassword()
+    {
+        await _factory.ResetDatabaseAsync();
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "not-an-email",
+            password = "weak"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -82,6 +124,25 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
         {
             name = "Invalid product",
             price = -1,
+            stock = 5
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProductValidation_RejectsBlankName()
+    {
+        await _factory.ResetDatabaseAsync();
+        await SeedUserAsync("admin@example.com", "Admin");
+        using var client = _factory.CreateClient();
+        var token = await LoginAsync(client, "admin@example.com");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.PostAsJsonAsync("/api/products", new
+        {
+            name = "   ",
+            price = 10,
             stock = 5
         });
 

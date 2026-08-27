@@ -19,28 +19,38 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public IActionResult Register(RegisterDto dto)
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        if (_db.Users.Any(u => u.Email == dto.Email))
-            return BadRequest("User exists");
+        var email = NormalizeEmail(dto.Email);
+        if (await _db.Users.AnyAsync(u => u.Email == email))
+            return Conflict(new { error = "An account with this email already exists." });
 
         var user = new User
         {
-            Email = dto.Email,
+            Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
         };
 
-        _db.Users.Add(user);
-        _db.SaveChanges();
-        return Ok();
+        try
+        {
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException exception) when (IsEmailUniquenessViolation(exception))
+        {
+            return Conflict(new { error = "An account with this email already exists." });
+        }
+
+        return StatusCode(StatusCodes.Status201Created, new { message = "Account created." });
     }
 
     [HttpPost("login")]
-    public IActionResult Login(LoginDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var user = _db.Users.SingleOrDefault(u => u.Email == dto.Email);
+        var email = NormalizeEmail(dto.Email);
+        var user = await _db.Users.SingleOrDefaultAsync(u => u.Email == email);
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-            return Unauthorized();
+            return Unauthorized(new { error = "Invalid email or password." });
 
         var token = GenerateJwtToken(user);
         return Ok(new { token });
@@ -74,5 +84,15 @@ public class AuthController : ControllerBase
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToUpperInvariant();
+
+    private static bool IsEmailUniquenessViolation(DbUpdateException exception)
+    {
+        var message = exception.InnerException?.Message ?? exception.Message;
+        return message.Contains("IX_Users_Email", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("UNIQUE constraint failed: Users.Email", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase);
     }
 }

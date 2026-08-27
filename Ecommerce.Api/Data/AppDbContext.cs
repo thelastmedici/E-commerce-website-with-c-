@@ -14,6 +14,11 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Product>()
+            .Property(p => p.Name)
+            .IsRequired()
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<Product>()
             .Property(p => p.Price)
             .HasPrecision(18, 2);
 
@@ -34,6 +39,15 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderItem>()
             .Property(oi => oi.Price)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Email)
+            .IsRequired()
+            .HasMaxLength(320);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
 
         modelBuilder.Entity<User>()
             .HasMany(u => u.Orders)
