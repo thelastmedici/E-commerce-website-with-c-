@@ -46,14 +46,19 @@ public class AppDbContext : DbContext
             .HasMaxLength(320);
 
         modelBuilder.Entity<User>()
-            .HasIndex(u => u.Email)
-            .IsUnique();
+            .Property(u => u.NormalizedEmail)
+            .IsRequired()
+            .HasMaxLength(320);
 
         modelBuilder.Entity<User>()
             .HasMany(u => u.Orders)
             .WithOne(o => o.User)
             .HasForeignKey(o => o.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.NormalizedEmail)
+            .IsUnique();
 
         modelBuilder.Entity<Order>()
             .HasMany(o => o.Items)

@@ -4,11 +4,11 @@ public class ProductCreateDto
 {
     [Required]
     [StringLength(200, MinimumLength = 2)]
-    [RegularExpression(@".*\S.*", ErrorMessage = "Name must contain non-whitespace characters.")]
+    [RegularExpression(@"^[\p{L}\p{N} \-'\.,()]+$", ErrorMessage = "Name contains invalid characters.")]
     public string Name { get; set; } = string.Empty;
 
     [Required]
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(0.01, 1000000.00, ErrorMessage = "Price must be at least 0.01 and reasonably bounded.")]
     public decimal Price { get; set; }
 
     [Required]
