@@ -109,6 +109,14 @@ All product and order endpoints require a valid bearer token unless stated other
 
 Products referenced by existing orders cannot be deleted.
 
+Product listings support optional search, price, stock, and pagination parameters:
+
+```text
+/api/products?search=phone&minPrice=10&maxPrice=500&inStock=true&page=1&pageSize=20
+```
+
+`pageSize` is limited to 100 items per request.
+
 ### Orders
 
 | Method | Route | Access |
@@ -116,8 +124,13 @@ Products referenced by existing orders cannot be deleted.
 | `GET` | `/api/orders` | Own orders; admins see all |
 | `GET` | `/api/orders/{id}` | Owner or admin |
 | `POST` | `/api/orders` | Authenticated users |
+| `PATCH` | `/api/orders/{id}/status` | Admins only |
+| `POST` | `/api/orders/{id}/cancel` | Owner or admin |
+| `POST` | `/api/orders/{id}/refund` | Admins only |
 
 Order ownership is taken from the authenticated JWT identity. Clients do not submit a `UserId`. Order creation validates product existence, checks stock, decrements stock transactionally, and captures the product price at purchase time.
+
+Orders move through `Pending`, `Confirmed`, `Shipped`, and `Delivered`. Owners can cancel pending or confirmed orders, which restores stock. Admins can record refunds for shipped or delivered orders. The refund endpoint records the order state; connecting it to an external payment provider still requires provider-specific credentials and webhook handling.
 
 Example order request:
 

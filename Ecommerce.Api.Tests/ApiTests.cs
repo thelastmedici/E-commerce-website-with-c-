@@ -150,6 +150,26 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
     }
 
     [Fact]
+    public async Task ProductListing_SupportsSearchFiltersAndPagination()
+    {
+        await _factory.ResetDatabaseAsync();
+        await SeedProductAsync("Wireless phone", 100, 4);
+        await SeedProductAsync("Phone case", 20, 0);
+        await SeedProductAsync("Laptop stand", 50, 3);
+        using var client = _factory.CreateClient();
+        var token = await RegisterAndLoginAsync(client, "catalog@example.com");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/products?search=phone&minPrice=50&inStock=true&page=1&pageSize=1");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, body.GetProperty("totalCount").GetInt32());
+        Assert.Equal(1, body.GetProperty("totalPages").GetInt32());
+        Assert.Single(body.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
     public async Task OrderCreation_RejectsQuantityAboveStock()
     {
         await _factory.ResetDatabaseAsync();
@@ -164,6 +184,56 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OrderCancellation_RestoresStockForTheOwner()
+    {
+        await _factory.ResetDatabaseAsync();
+        var productId = await SeedProductAsync("Cancelable product", 10, 2);
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await RegisterAndLoginAsync(client, "cancel@example.com"));
+
+        var create = await client.PostAsJsonAsync("/api/orders", new
+        {
+            items = new[] { new { productId, quantity = 1 } }
+        });
+        var orderId = (await create.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        var cancel = await client.PostAsync($"/api/orders/{orderId}/cancel", null);
+        var productResponse = await client.GetAsync($"/api/products/{productId}");
+        var product = await productResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
+        Assert.Equal("Cancelled", (await cancel.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        Assert.Equal(2, product.GetProperty("stock").GetInt32());
+    }
+
+    [Fact]
+    public async Task Admin_CanAdvanceOrderAndRecordRefund()
+    {
+        await _factory.ResetDatabaseAsync();
+        var productId = await SeedProductAsync("Refundable product", 10, 1);
+        await SeedUserAsync("admin@example.com", "Admin");
+        using var customerClient = _factory.CreateClient();
+        using var adminClient = _factory.CreateClient();
+        customerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await RegisterAndLoginAsync(customerClient, "buyer@example.com"));
+        adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LoginAsync(adminClient, "admin@example.com"));
+
+        var create = await customerClient.PostAsJsonAsync("/api/orders", new
+        {
+            items = new[] { new { productId, quantity = 1 } }
+        });
+        var orderId = (await create.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        Assert.Equal(HttpStatusCode.OK, (await SetOrderStatusAsync(adminClient, orderId, "Confirmed")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SetOrderStatusAsync(adminClient, orderId, "Shipped")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SetOrderStatusAsync(adminClient, orderId, "Delivered")).StatusCode);
+        var refund = await adminClient.PostAsync($"/api/orders/{orderId}/refund", null);
+        var refundBody = await refund.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, refund.StatusCode);
+        Assert.Equal("Refunded", refundBody.GetProperty("status").GetString());
     }
 
     [Fact]
@@ -246,7 +316,8 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Users.Add(new User
         {
-            Email = email,
+            Email = email.Trim().ToUpperInvariant(),
+            NormalizedEmail = email.Trim().ToUpperInvariant(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!"),
             Role = role
         });
@@ -268,4 +339,7 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
         {
             items = new[] { new { productId, quantity = 1 } }
         });
+
+    private static Task<HttpResponseMessage> SetOrderStatusAsync(HttpClient client, int orderId, string status) =>
+        client.PatchAsJsonAsync($"/api/orders/{orderId}/status", new { status });
 }

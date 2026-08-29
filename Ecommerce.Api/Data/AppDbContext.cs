@@ -36,9 +36,29 @@ public class AppDbContext : DbContext
             rowVersion.IsRowVersion();
         }
 
+        var orderRowVersion = modelBuilder.Entity<Order>().Property(o => o.RowVersion);
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            orderRowVersion
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAdd()
+                .HasColumnType("BLOB")
+                .HasDefaultValueSql("randomblob(8)");
+        }
+        else
+        {
+            orderRowVersion.IsRowVersion();
+        }
+
         modelBuilder.Entity<OrderItem>()
             .Property(oi => oi.Price)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Order>()
+            .Property(o => o.Status)
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(OrderStatus.Pending);
 
         modelBuilder.Entity<User>()
             .Property(u => u.Email)

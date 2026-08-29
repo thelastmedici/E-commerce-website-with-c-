@@ -15,9 +15,36 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetProducts()
+    public async Task<IActionResult> GetProducts([FromQuery] ProductQueryDto query)
     {
-        var list = await _db.Products
+        if (query.MinPrice.HasValue && query.MaxPrice.HasValue && query.MinPrice > query.MaxPrice)
+        {
+            ModelState.AddModelError(nameof(query.MaxPrice), "MaxPrice must be greater than or equal to MinPrice.");
+            return ValidationProblem(ModelState);
+        }
+
+        var productsQuery = _db.Products.AsNoTracking();
+        var search = query.Search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            productsQuery = productsQuery.Where(p => p.Name.Contains(search));
+
+        if (query.MinPrice.HasValue)
+            productsQuery = productsQuery.Where(p => p.Price >= query.MinPrice.Value);
+
+        if (query.MaxPrice.HasValue)
+            productsQuery = productsQuery.Where(p => p.Price <= query.MaxPrice.Value);
+
+        if (query.InStock.HasValue)
+            productsQuery = query.InStock.Value
+                ? productsQuery.Where(p => p.Stock > 0)
+                : productsQuery.Where(p => p.Stock == 0);
+
+        var totalCount = await productsQuery.CountAsync();
+        var items = await productsQuery
+            .OrderBy(p => p.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
             .AsNoTracking()
             .Select(p => new ProductResponseDto
             {
@@ -28,7 +55,12 @@ public class ProductsController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(list);
+        return Ok(new ProductListResponseDto(
+            items,
+            query.Page,
+            query.PageSize,
+            totalCount,
+            (int)Math.Ceiling(totalCount / (double)query.PageSize)));
     }
 
     [HttpGet("{id:int}")]

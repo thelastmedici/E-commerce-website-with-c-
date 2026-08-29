@@ -23,3 +23,30 @@ public class ProductResponseDto
     public decimal Price { get; set; }
     public int Stock { get; set; }
 }
+
+public class ProductQueryDto
+{
+    [StringLength(100)]
+    public string? Search { get; set; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    public decimal? MinPrice { get; set; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    public decimal? MaxPrice { get; set; }
+
+    public bool? InStock { get; set; }
+
+    [Range(1, 1000000)]
+    public int Page { get; set; } = 1;
+
+    [Range(1, 100)]
+    public int PageSize { get; set; } = 20;
+}
+
+public record ProductListResponseDto(
+    List<ProductResponseDto> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages);
