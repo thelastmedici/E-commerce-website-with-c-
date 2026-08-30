@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore Ecommerce.Api/Ecommerce.Api.sln
+
+      - name: Build solution
+        run: dotnet build Ecommerce.Api/Ecommerce.Api.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test Ecommerce.Api/Ecommerce.Api.sln --configuration Release --no-build --no-restore --logger "trx;LogFileName=test-results.trx"

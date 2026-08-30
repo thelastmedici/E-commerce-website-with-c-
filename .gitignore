@@ -1,0 +1,16 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio and local tooling
+.vs/
+*.user
+*.suo
+
+# Test output and coverage
+TestResults/
+coverage/
+*.trx
+
+# Operating system files
+.DS_Store

@@ -97,6 +97,22 @@ All product and order endpoints require a valid bearer token unless stated other
 | `POST` | `/api/auth/register` | Register a user |
 | `POST` | `/api/auth/login` | Authenticate and receive a JWT |
 
+Register a user:
+
+```bash
+curl -X POST http://localhost:5065/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"customer@example.com","password":"Password123!"}'
+```
+
+Log in and copy the returned `token` value:
+
+```bash
+curl -X POST http://localhost:5065/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"customer@example.com","password":"Password123!"}'
+```
+
 ### Products
 
 | Method | Route | Access |
@@ -116,6 +132,22 @@ Product listings support optional search, price, stock, and pagination parameter
 ```
 
 `pageSize` is limited to 100 items per request.
+
+Use the returned bearer token to query the catalog:
+
+```bash
+curl 'http://localhost:5065/api/products?search=phone&inStock=true&page=1&pageSize=20' \
+  -H 'Authorization: Bearer <token>'
+```
+
+Admin product creation request:
+
+```bash
+curl -X POST http://localhost:5065/api/products \
+  -H 'Authorization: Bearer <admin-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Wireless phone","price":299.99,"stock":25}'
+```
 
 ### Orders
 
@@ -143,6 +175,22 @@ Example order request:
     }
   ]
 }
+```
+
+Cancel an eligible order:
+
+```bash
+curl -X POST http://localhost:5065/api/orders/1/cancel \
+  -H 'Authorization: Bearer <token>'
+```
+
+Advance an order as an admin:
+
+```bash
+curl -X PATCH http://localhost:5065/api/orders/1/status \
+  -H 'Authorization: Bearer <admin-token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"Confirmed"}'
 ```
 
 ## Tests
