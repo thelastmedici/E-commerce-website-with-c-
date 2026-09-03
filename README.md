@@ -44,6 +44,15 @@ export Cors__AllowedOrigins__1='http://localhost:5173'
 
 The application fails during startup when the JWT key, database connection string, or CORS allowlist is missing. Do not commit real secrets to this repository.
 
+To provision the first administrator, configure these one-time bootstrap settings through environment variables or user secrets:
+
+```bash
+export AdminBootstrap__Email='admin@example.com'
+export AdminBootstrap__Password='use-a-unique-password-at-least-12-characters'
+```
+
+When both settings are present, startup creates the administrator if the email does not exist. It is idempotent for an existing administrator and refuses to promote an existing regular user. Remove the bootstrap password from the environment after the account is created; the account and its password hash remain in the database.
+
 ## Run Locally
 
 From the repository root, set the SQL Server password and start the database:
@@ -53,7 +62,7 @@ export MSSQL_SA_PASSWORD='<your-password>'
 docker compose up -d
 ```
 
-Use the same password in `ConnectionStrings__DefaultConnection`, then restore and apply the database migrations:
+Use the same password in `ConnectionStrings__DefaultConnection`. If this is a clean database, apply every migration before starting the API:
 
 ```bash
 cd Ecommerce.Api

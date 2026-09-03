@@ -112,6 +112,9 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+await AdminBootstrapper.ProvisionAsync(app.Services, builder.Configuration);
+
 app.Run();
 
 public partial class Program { }
