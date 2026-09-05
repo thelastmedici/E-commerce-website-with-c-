@@ -1,0 +1,10 @@
+.git
+.github
+.vs
+[Bb]in/
+[Oo]bj/
+backups/
+.env
+.env.*
+!.env.example
+README.md

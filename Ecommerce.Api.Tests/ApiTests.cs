@@ -94,6 +94,21 @@ public sealed class ApiTests : IClassFixture<TestApplicationFactory>
     }
 
     [Fact]
+    public async Task HealthEndpoints_ArePublicAndReturnCorrelationId()
+    {
+        await _factory.ResetDatabaseAsync();
+        using var client = _factory.CreateClient();
+
+        var live = await client.GetAsync("/health/live");
+        var ready = await client.GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, live.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        Assert.True(live.Headers.TryGetValues("X-Correlation-ID", out var values));
+        Assert.True(Guid.TryParse(values.Single(), out _));
+    }
+
+    [Fact]
     public async Task ProductManagement_RequiresAdminRole()
     {
         await _factory.ResetDatabaseAsync();

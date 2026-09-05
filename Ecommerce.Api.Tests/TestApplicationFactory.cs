@@ -16,6 +16,8 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
         SetEnvironment("Jwt__Key", "test-only-key-that-is-at-least-32-characters-long");
         SetEnvironment("ConnectionStrings__DefaultConnection", "Data Source=test-only");
         SetEnvironment("Cors__AllowedOrigins__0", "http://localhost");
+        SetEnvironment("RateLimiting__PermitLimit", "1000");
+        SetEnvironment("RateLimiting__WindowSeconds", "60");
         _keeperConnection.Open();
     }
 

@@ -29,3 +29,47 @@ jobs:
 
       - name: Run tests
         run: dotnet test Ecommerce.Api/Ecommerce.Api.sln --configuration Release --no-build --no-restore --logger "trx;LogFileName=test-results.trx"
+
+  sqlserver-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MSSQL_SA_PASSWORD: ci-sqlserver-password-2026
+      ConnectionStrings__DefaultConnection: Server=localhost,1433;Database=EcommerceCi;User Id=sa;Password=ci-sqlserver-password-2026;TrustServerCertificate=True;
+      Jwt__Key: ci-only-jwt-key-that-is-at-least-32-characters-long
+      Cors__AllowedOrigins__0: http://localhost
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: ci-sqlserver-password-2026
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'ci-sqlserver-password-2026' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 20s
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore Ecommerce.Api/Ecommerce.Api.sln
+
+      - name: Build API
+        run: dotnet build Ecommerce.Api/Ecommerce.Api.csproj --configuration Release --no-restore
+
+      - name: Install EF CLI
+        run: dotnet tool install --global dotnet-ef --version 8.0.21
+
+      - name: Apply all migrations to SQL Server
+        run: dotnet ef database update --project Ecommerce.Api/Ecommerce.Api.csproj --startup-project Ecommerce.Api/Ecommerce.Api.csproj --configuration Release --no-build

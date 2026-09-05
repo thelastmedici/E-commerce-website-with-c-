@@ -10,6 +10,9 @@ An ASP.NET Core Web API for a sample e-commerce application. The API provides JW
 - JWT bearer authentication
 - BCrypt password hashing
 - Swagger/OpenAPI in development
+- Health and readiness probes
+- IP-based request rate limiting
+- Structured JSON request logs with correlation IDs
 - xUnit integration tests with SQLite in-memory storage
 
 ## Prerequisites
@@ -94,6 +97,13 @@ dotnet ef migrations add <MigrationName>
 ```
 
 The current model includes product stock and a SQL Server `rowversion` concurrency token.
+
+Health endpoints are intentionally public for load balancers and orchestrators:
+
+- `GET /health/live` confirms the process is serving requests.
+- `GET /health/ready` checks the SQL Server dependency and returns `503` when the API is not ready.
+
+Non-health requests are rate limited per client IP. The defaults are 100 requests per 60 seconds and can be overridden with `RateLimiting__PermitLimit` and `RateLimiting__WindowSeconds`. Every response includes an `X-Correlation-ID` header; valid request IDs are preserved and invalid or missing IDs are replaced with a generated UUID.
 
 ## API Endpoints
 
@@ -220,6 +230,40 @@ Run all tests from the repository root:
 dotnet test Ecommerce.Api.Tests/Ecommerce.Api.Tests.csproj
 ```
 
+The CI pipeline runs these integration tests with SQLite and a separate SQL Server job that applies every EF migration to a clean database.
+
+## Production Deployment
+
+The repository includes a multi-stage, non-root [Dockerfile](Dockerfile). The `app` Compose profile runs the API behind Caddy, which terminates HTTPS and obtains certificates automatically for the configured domain.
+
+For a local or VM deployment:
+
+```bash
+cp .env.example .env
+# Set real values in .env, including DOMAIN, JWT_KEY, and MSSQL_SA_PASSWORD.
+docker compose --profile app up -d --build
+```
+
+Point DNS for `DOMAIN` to the host before starting Caddy. Apply migrations before starting the API profile:
+
+```bash
+docker compose up -d sqlserver
+(cd Ecommerce.Api && dotnet ef database update)
+docker compose --profile app up -d --build
+```
+
+The API is kept on the internal Compose network and only Caddy publishes ports 80 and 443. Compose opts into trusting forwarded headers because Caddy is the only public ingress; do not enable `ForwardedHeaders:TrustAll` when the API is directly internet-facing. For managed production platforms, inject `Jwt__Key`, `ConnectionStrings__DefaultConnection`, CORS origins, and bootstrap credentials through the platform secret manager instead of using a committed file or Docker image layer.
+
+SQL Server data is stored in the named `sqlserver-data` volume. The backup command writes inside the container, copies the verified backup to `./backups`, and removes the temporary container copy:
+
+```bash
+MSSQL_SA_PASSWORD='<password>' DATABASE_NAME=EcommerceDb ./scripts/backup-sqlserver.sh
+```
+
+Backups are written to `./backups` with a seven-day local retention default. Copy backups to encrypted, durable off-host storage and regularly test restoring one before treating the deployment as production-ready.
+
+Container logs are JSON formatted and include the request method, path, status code, duration, and correlation ID. Forward stdout to the hosting platform's log and alerting system; no third-party monitoring credential is required by the application.
+
 ## Project Structure
 
 ```text
@@ -229,10 +273,15 @@ Ecommerce.Api/
   DTOs/            Request and response contracts
   Migrations/      EF Core database migrations
   Models/          Domain entities
+  Observability/   Health and request-correlation middleware
   Program.cs       Application startup and middleware
+  Security/        Admin bootstrap logic
 Ecommerce.Api.Tests/
   ApiTests.cs      Integration test scenarios
   TestApplicationFactory.cs
+Dockerfile         Production API image
+Caddyfile          HTTPS reverse proxy configuration
+scripts/           Operational database backup script
 ```
 
 ## Security Notes
